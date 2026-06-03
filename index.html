@@ -602,6 +602,28 @@
     margin-left: 4px;
   }
 
+  /* ── SYNC STATUS ── */
+  .sync-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.7);
+    white-space: nowrap;
+  }
+  .sync-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.4);
+    flex-shrink: 0;
+  }
+  .sync-status.ok .sync-dot { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,0.6); }
+  .sync-status.syncing .sync-dot { background: #fbbf24; animation: pulse 1s ease-in-out infinite; }
+  .sync-status.offline .sync-dot { background: #f87171; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
   /* ── HEAD-TO-HEAD BANNER (siempre visible) ── */
   .h2h-banner {
     background: linear-gradient(135deg, var(--steel-dark) 0%, var(--steel) 100%);
@@ -984,6 +1006,7 @@
     .main { padding: 16px 12px 80px; }
     .header { padding: 0 14px; height: 52px; }
     .header-brand { font-size: 17px; letter-spacing: 1.5px; }
+    .header-date { display: none; }
     .tabs-wrapper { padding: 0 8px; gap: 0; }
     .tab-btn { padding: 12px 12px; font-size: 14px; letter-spacing: 1px; flex: 1; }
     .section-title { font-size: 16px; }
@@ -1049,7 +1072,8 @@
 <!-- HEADER -->
 <div class="header">
   <div class="header-brand">Strong Standard</div>
-  <div style="display:flex;align-items:center;gap:16px;">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="sync-status offline" id="syncStatus"></div>
     <div class="header-date" id="headerDate"></div>
     <button onclick="resetSetup()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:4px 10px;color:rgba(255,255,255,0.7);font-size:10px;letter-spacing:1px;cursor:pointer;text-transform:uppercase;font-family:'DM Sans',sans-serif;">⚙ Setup</button>
   </div>
@@ -1421,6 +1445,56 @@ async function storageSet(key, value) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  SINCRONIZACIÓN EN LA NUBE (Google Apps Script + Sheet)
+// ═══════════════════════════════════════════════════════
+
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyk-5ZpiGzawyK3QOsx-PPa7hRSD-jG8A29mDVrbkxPnP5G0WY0EyB9zT_hhIHS3zilEg/exec';
+const REMOTE_ENABLED = /script\.google\.com/.test(SCRIPT_URL);
+
+function setSync(state) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  const map = {
+    syncing: { cls: 'syncing', txt: 'Sincronizando…' },
+    ok:      { cls: 'ok',      txt: 'Sincronizado' },
+    offline: { cls: 'offline', txt: 'Sin conexión' }
+  };
+  const s = map[state] || map.offline;
+  el.className = 'sync-status ' + s.cls;
+  el.innerHTML = `<span class="sync-dot"></span>${s.txt}`;
+}
+
+async function remoteLoad() {
+  const res = await fetch(SCRIPT_URL + '?action=load');
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'load failed');
+  return json.data; // { config, data }
+}
+
+async function remotePost(payload) {
+  const res = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' }, // evita CORS preflight
+    body: JSON.stringify(payload)
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'save failed');
+  return json;
+}
+
+function isDataEmpty(d) {
+  if (!d) return true;
+  return Object.keys(d.bernardo || {}).length === 0 && Object.keys(d.manu || {}).length === 0;
+}
+
+// Empuja un cambio a la nube en segundo plano y actualiza el indicador.
+function syncPush(payload) {
+  if (!REMOTE_ENABLED) return;
+  setSync('syncing');
+  remotePost(payload).then(() => setSync('ok')).catch(() => setSync('offline'));
+}
+
+// ═══════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════
 
@@ -1443,13 +1517,38 @@ async function init() {
   document.getElementById('b-date').value = today;
   document.getElementById('m-date').value = today;
 
-  // Load config & data
+  // 1) Carga local primero (instantáneo, sirve de caché offline)
   CONFIG = await storageGet('ss-config');
   const savedData = await storageGet('ss-data');
   if (savedData) DATA = savedData;
 
+  // 2) Intenta traer/migrar desde la nube
+  if (REMOTE_ENABLED) {
+    setSync('syncing');
+    try {
+      const remote = await remoteLoad();
+      const remoteEmpty = !remote.config && isDataEmpty(remote.data);
+      const localHasStuff = CONFIG || !isDataEmpty(DATA);
+
+      if (remoteEmpty && localHasStuff) {
+        // Primera vez: sube lo que ya tenías local a la nube
+        await remotePost({ action: 'saveAll', state: { config: CONFIG, data: DATA } });
+      } else {
+        // La nube es la fuente de verdad compartida entre dispositivos
+        if (remote.data) DATA = remote.data;
+        if (remote.config) CONFIG = remote.config;
+        await storageSet('ss-data', DATA);
+        if (CONFIG) await storageSet('ss-config', CONFIG);
+      }
+      setSync('ok');
+    } catch (e) {
+      console.warn('Sync load falló, usando datos locales:', e);
+      setSync('offline');
+    }
+  }
+
+  // 3) Muestra setup o dashboard
   if (!CONFIG) {
-    // Show setup modal
     document.getElementById('setup-startDate').value = today;
     document.getElementById('setupModal').style.display = 'flex';
   } else {
@@ -1472,6 +1571,7 @@ async function saveSetup() {
 
   CONFIG = { startDate, bStartWeight: bW, bGoalWeight: bG, mStartWeight: mW, mGoalWeight: mG };
   await storageSet('ss-config', CONFIG);
+  syncPush({ action: 'saveConfig', config: CONFIG });
   document.getElementById('setupModal').style.display = 'none';
   renderAll();
 }
@@ -1517,6 +1617,7 @@ async function saveDay(person) {
   if (!DATA[person]) DATA[person] = {};
   DATA[person][date] = entry;
   await storageSet('ss-data', DATA);
+  syncPush({ action: 'saveDay', person, entry });
 
   // Feedback
   const msg = document.getElementById(`${p}-save-msg`);
@@ -2364,6 +2465,7 @@ async function importData(input) {
     DATA = payload.data;
     if (payload.config) { CONFIG = payload.config; await storageSet('ss-config', CONFIG); }
     await storageSet('ss-data', DATA);
+    syncPush({ action: 'saveAll', state: { config: CONFIG, data: DATA } });
     renderAll();
     flashBackup('✓ Respaldo importado correctamente');
   } catch (e) {
