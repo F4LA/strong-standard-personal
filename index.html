@@ -1216,6 +1216,7 @@
     </div>
 
     <button class="save-btn" onclick="saveSetup()">COMENZAR</button>
+    <button onclick="wipeAll()" style="width:100%;margin-top:12px;background:none;border:none;color:var(--danger);font-size:11px;font-family:'DM Sans',sans-serif;letter-spacing:0.5px;cursor:pointer;text-decoration:underline;">Borrar todos los datos y empezar de cero</button>
   </div>
 </div>
 
@@ -1686,8 +1687,8 @@ async function init() {
   });
 
   // 1) Carga local primero (instantáneo, sirve de caché offline)
-  CONFIG = await storageGet('ss-config-v2');
-  const savedData = await storageGet('ss-data-v2');
+  CONFIG = await storageGet('ss-config-v3');
+  const savedData = await storageGet('ss-data-v3');
   if (savedData) DATA = savedData;
 
   // Render inmediato desde caché si ya hay config (sin flash de setup, sin pantalla en blanco)
@@ -1711,8 +1712,8 @@ async function init() {
         // La nube es la fuente de verdad compartida entre dispositivos
         if (remote.data) DATA = remote.data;
         if (remote.config) CONFIG = remote.config;
-        await storageSet('ss-data-v2', DATA);
-        if (CONFIG) await storageSet('ss-config-v2', CONFIG);
+        await storageSet('ss-data-v3', DATA);
+        if (CONFIG) await storageSet('ss-config-v3', CONFIG);
       }
       setSync('ok');
     } catch (e) {
@@ -1744,10 +1745,27 @@ async function saveSetup() {
   }
 
   CONFIG = { startDate, bStartWeight: bW, bGoalWeight: bG, mStartWeight: mW, mGoalWeight: mG };
-  await storageSet('ss-config-v2', CONFIG);
+  await storageSet('ss-config-v3', CONFIG);
   syncPush({ action: 'saveConfig', config: CONFIG });
   document.getElementById('setupModal').style.display = 'none';
   renderAll();
+}
+
+async function wipeAll() {
+  if (!confirm('¿Borrar TODOS los datos (configuración + todos los registros), en este dispositivo Y en la nube? Esta acción no se puede deshacer.')) return;
+  try { localStorage.removeItem('ss-config-v3'); localStorage.removeItem('ss-data-v3'); } catch (e) {}
+  if (REMOTE_ENABLED) {
+    try {
+      await remotePost({ action: 'saveAll', state: { data: { bernardo: {}, manu: {} } } });
+      await remotePost({ action: 'saveConfig', config: { startDate: '', bStartWeight: '', bGoalWeight: '', mStartWeight: '', mGoalWeight: '' } });
+    } catch (e) {
+      alert('No se pudo limpiar la nube (¿sin internet?). Inténtalo de nuevo.');
+      return;
+    }
+  }
+  CONFIG = null;
+  DATA = { bernardo: {}, manu: {} };
+  location.reload();
 }
 
 function resetSetup() {
@@ -1791,7 +1809,7 @@ async function saveDay(person) {
 
   if (!DATA[person]) DATA[person] = {};
   DATA[person][date] = entry;
-  await storageSet('ss-data-v2', DATA);
+  await storageSet('ss-data-v3', DATA);
   syncPush({ action: 'saveDay', person, entry });
 
   // Feedback
@@ -2376,7 +2394,7 @@ function getSeasonInfo(refDate) {
 
 function seasonStandings(info) {
   let bPts = 0, mPts = 0, bWeeks = 0, mWeeks = 0, ties = 0;
-  const todayMon = mondayOf(new Date()).getTime();
+  const todayMon = mondayOf(nowQ()).getTime();
   info.weeks.forEach(mon => {
     const b = weekTotal('bernardo', mon), m = weekTotal('manu', mon);
     bPts += b; mPts += m;
@@ -2421,11 +2439,11 @@ function allWeekMondays() {
 function renderH2HBanner() {
   const el = document.getElementById('h2hBanner');
   if (!el) return;
-  const monday = mondayOf(new Date());
+  const monday = mondayOf(nowQ());
   const b = weekTotal('bernardo', monday);
   const m = weekTotal('manu', monday);
   const bLead = b > m, mLead = m > b;
-  const dow = new Date().getDay();           // 0=domingo
+  const dow = nowQ().getDay();           // 0=domingo
   const daysLeft = dow === 0 ? 0 : 7 - dow;
 
   let verdict;
@@ -2435,7 +2453,7 @@ function renderH2HBanner() {
 
   let eyebrow = 'Versus · semana en curso';
   if (CONFIG && CONFIG.startDate) {
-    const si = getSeasonInfo(new Date());
+    const si = getSeasonInfo(nowQ());
     eyebrow = `Temporada ${si.number} · Semana ${si.weekInSeason}/${SEASON_WEEKS}`;
   }
 
@@ -2473,7 +2491,7 @@ function renderSeason() {
   if (!banner) return;
   if (!CONFIG || !CONFIG.startDate) { banner.innerHTML = ''; board.innerHTML = ''; hist.innerHTML = ''; return; }
 
-  const info = getSeasonInfo(new Date());
+  const info = getSeasonInfo(nowQ());
   const st = seasonStandings(info);
   const weeksLeft = SEASON_WEEKS - info.weekInSeason;
   const pct = Math.round((info.weekInSeason / SEASON_WEEKS) * 100);
@@ -2543,10 +2561,10 @@ function renderSeason() {
 function renderWeekBoard() {
   const el = document.getElementById('week-board');
   if (!el) return;
-  const monday = mondayOf(new Date());
+  const monday = mondayOf(nowQ());
   const b = weekTotal('bernardo', monday);
   const m = weekTotal('manu', monday);
-  const dow = new Date().getDay();
+  const dow = nowQ().getDay();
   const daysLeft = dow === 0 ? 0 : 7 - dow;
   const diff = Math.abs(b - m);
 
@@ -2593,8 +2611,8 @@ const DOW_SHORT = ['L','M','M','J','V','S','D'];
 function renderDayStrip() {
   const el = document.getElementById('day-strip');
   if (!el) return;
-  const monday = mondayOf(new Date());
-  const todayY = ymd(new Date());
+  const monday = mondayOf(nowQ());
+  const todayY = ymd(nowQ());
   let html = '';
   for (let i = 0; i < 7; i++) {
     const d = addDays(monday, i);
@@ -2626,7 +2644,7 @@ function renderDayStrip() {
 function renderWeekHistory() {
   const el = document.getElementById('week-history');
   if (!el) return;
-  const currentMon = ymd(mondayOf(new Date()));
+  const currentMon = ymd(mondayOf(nowQ()));
   const weeks = allWeekMondays().filter(w => w < currentMon).reverse(); // completas, recientes primero
 
   if (weeks.length === 0) {
@@ -2673,9 +2691,9 @@ function personName(p) { return p === 'bernardo' ? 'Bernardo' : 'Manu'; }
 
 function celebrate() {
   if (!CONFIG || !CONFIG.startDate) return;
-  const monday = mondayOf(new Date());
+  const monday = mondayOf(nowQ());
   const wb = weekTotal('bernardo', monday), wm = weekTotal('manu', monday);
-  const info = getSeasonInfo(new Date());
+  const info = getSeasonInfo(nowQ());
   const st = seasonStandings(info);
 
   const weekLeader   = wb > wm ? 'bernardo' : wm > wb ? 'manu' : null;
@@ -2724,7 +2742,7 @@ function showCelebration(msgs) {
 let MONTH_STATE = null; // {year, month}
 
 function changeMonth(delta) {
-  if (!MONTH_STATE) MONTH_STATE = { year: new Date().getFullYear(), month: new Date().getMonth() };
+  if (!MONTH_STATE) MONTH_STATE = { year: nowQ().getFullYear(), month: nowQ().getMonth() };
   let { year, month } = MONTH_STATE;
   month += delta;
   if (month < 0) { month = 11; year--; }
@@ -2734,7 +2752,7 @@ function changeMonth(delta) {
 }
 
 function renderMonth() {
-  if (!MONTH_STATE) MONTH_STATE = { year: new Date().getFullYear(), month: new Date().getMonth() };
+  if (!MONTH_STATE) MONTH_STATE = { year: nowQ().getFullYear(), month: nowQ().getMonth() };
   const { year, month } = MONTH_STATE;
   const titleEl = document.getElementById('month-title');
   const gridEl = document.getElementById('cal-grid');
@@ -2746,7 +2764,7 @@ function renderMonth() {
   const first = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const leadBlanks = (first.getDay() + 6) % 7; // lunes=0
-  const todayY = ymd(new Date());
+  const todayY = ymd(nowQ());
 
   let html = ['L','M','M','J','V','S','D'].map(d => `<div class="cal-dow">${d}</div>`).join('');
   for (let i = 0; i < leadBlanks; i++) html += `<div class="cal-cell blank"></div>`;
@@ -2809,7 +2827,7 @@ function exportData() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `strong-standard-backup-${ymd(new Date())}.json`;
+  a.download = `strong-standard-backup-${ymd(nowQ())}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
   flashBackup('✓ Respaldo descargado');
@@ -2823,8 +2841,8 @@ async function importData(input) {
     if (!payload || !payload.data) throw new Error('formato');
     if (!confirm('Esto reemplazará TODOS los datos de este navegador con los del respaldo. ¿Continuar?')) { input.value = ''; return; }
     DATA = payload.data;
-    if (payload.config) { CONFIG = payload.config; await storageSet('ss-config-v2', CONFIG); }
-    await storageSet('ss-data-v2', DATA);
+    if (payload.config) { CONFIG = payload.config; await storageSet('ss-config-v3', CONFIG); }
+    await storageSet('ss-data-v3', DATA);
     syncPush({ action: 'saveAll', state: { config: CONFIG, data: DATA } });
     renderAll();
     flashBackup('✓ Respaldo importado correctamente');
@@ -2838,8 +2856,20 @@ async function importData(input) {
 //  HELPERS
 // ═══════════════════════════════════════════════════════
 
+// "Hoy" SIEMPRE en hora de Quito, Ecuador (America/Guayaquil), sin importar la zona del dispositivo.
 function todayStr() {
-  return new Date().toISOString().split('T')[0];
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Guayaquil', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const get = t => parts.find(x => x.type === t).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+// Objeto Date con la FECHA de Quito (al mediodía local, para evitar bordes de día).
+// Úsalo en lugar de `new Date()` para cualquier cálculo de "hoy/ahora".
+function nowQ() {
+  const [y, m, d] = todayStr().split('-').map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0);
 }
 
 function formatDateDisplay(dateStr) {
@@ -2854,7 +2884,7 @@ function getMonday(d) {
 }
 
 function getThisWeekEntries(entries) {
-  const mon = getMonday(new Date());
+  const mon = getMonday(nowQ());
   const monStr = mon.toISOString().split('T')[0];
   const sunDate = new Date(mon); sunDate.setDate(mon.getDate() + 6);
   const sunStr = sunDate.toISOString().split('T')[0];
