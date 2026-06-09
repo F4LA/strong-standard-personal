@@ -998,6 +998,106 @@
   }
   .backup-btn:hover { border-color: var(--steel-light); color: var(--steel-dark); background: var(--steel-pale); }
 
+  /* ── TEMPORADA ── */
+  .season-banner {
+    background: linear-gradient(135deg, #0f4f7a 0%, #1A6FA3 55%, #2278AC 100%);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    color: #fff;
+    box-shadow: var(--shadow);
+  }
+  .season-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 3px;
+  }
+  .season-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+  }
+  .season-week {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+    white-space: nowrap;
+  }
+  .season-dates {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 12px;
+  }
+  .season-prog {
+    height: 8px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .season-prog-fill {
+    height: 100%;
+    background: #ffe08a;
+    border-radius: 10px;
+    transition: width 0.5s ease;
+  }
+  .season-countdown {
+    font-size: 11px;
+    color: rgba(255,255,255,0.85);
+    margin-top: 8px;
+    text-align: right;
+  }
+
+  .lb-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .lb-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: start;
+    gap: 10px;
+  }
+  .lb-side { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .lb-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 1px;
+    color: var(--text-mid);
+  }
+  .lb-pts {
+    font-family: 'DM Mono', monospace;
+    font-size: 42px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--text);
+  }
+  .lb-side.lead .lb-name { color: var(--steel-dark); }
+  .lb-side.lead .lb-pts { color: var(--steel); }
+  .lb-sub { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .lb-weeks {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text-mid);
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--border-light);
+  }
+  .lb-vs {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    color: var(--muted-light);
+    letter-spacing: 1px;
+    align-self: center;
+  }
+
   /* ── RESPONSIVE ── */
   @media (max-width: 600px) {
     .grid-4 { grid-template-columns: 1fr 1fr; }
@@ -1018,6 +1118,8 @@
     .day-cell { min-height: 64px; padding: 8px 2px; }
     .stat-value { font-size: 20px; }
     .log-table th, .log-table td { padding: 7px 7px; }
+    .lb-pts { font-size: 34px; }
+    .season-name { font-size: 19px; }
   }
 
   @media (max-width: 380px) {
@@ -1324,6 +1426,14 @@
   <!-- ═══════════════════════════════════════ -->
   <div class="tab-content" id="tab-competencia">
 
+    <!-- TEMPORADA (12 semanas) -->
+    <div class="section-header">
+      <span class="section-title">Temporada</span>
+      <div class="section-line"></div>
+    </div>
+    <div id="season-banner"></div>
+    <div id="season-leaderboard"></div>
+
     <!-- MARCADOR DE LA SEMANA (el que decide) -->
     <div class="section-header">
       <span class="section-title">Marcador de la Semana</span>
@@ -1347,6 +1457,13 @@
       <div class="section-line"></div>
     </div>
     <div class="card" id="week-history"></div>
+
+    <!-- TEMPORADAS PASADAS -->
+    <div class="section-header">
+      <span class="section-title">Temporadas Pasadas</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="card" id="season-history"></div>
 
     <!-- VISTA MENSUAL -->
     <div class="section-header">
@@ -1386,12 +1503,13 @@
             <tr><td>Verduras</td><td class="check-yes">10 (2+)</td><td>5 (1 porción)</td></tr>
             <tr><td>Comidas</td><td class="check-yes">5 (exacto 4)</td><td>2.5 (3 ó 5)</td></tr>
             <tr><td>Pasos</td><td class="check-yes">15 (8,000+)</td><td>7.5 (6,000–7,999)</td></tr>
-            <tr><td>Gym</td><td class="check-yes">15 (entrenó)</td><td>—</td></tr>
+            <tr><td>Gym (por día)</td><td class="check-yes">15 (entrenó)</td><td>—</td></tr>
             <tr><td>🌟 Día perfecto</td><td class="check-yes">+15 bonus</td><td>—</td></tr>
+            <tr><td>🏋️ Bono semanal gym</td><td class="check-yes">+20 (4 sesiones)</td><td>—</td></tr>
           </tbody>
         </table>
       </div>
-      <div style="font-size:10px;color:var(--muted);padding:10px 2px 0;letter-spacing:0.3px;">Máximo diario: 85 pts. La competencia es 100% hábitos — el peso no da puntos.</div>
+      <div style="font-size:10px;color:var(--muted);padding:10px 2px 0;letter-spacing:0.3px;">Máximo diario: 85 pts (+20 semanal si completas 4 gym). La competencia es 100% hábitos — el peso no da puntos. Un día no registrado cuenta como 0.</div>
     </div>
 
     <!-- RESPALDO DE DATOS -->
@@ -1514,12 +1632,14 @@ async function init() {
   // Set today's date in header
   const today = todayStr();
   document.getElementById('headerDate').textContent = formatDateDisplay(today);
-  document.getElementById('b-date').value = today;
-  document.getElementById('m-date').value = today;
+  ['b-date','m-date'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = today; el.min = today; el.max = today; // solo se registra el día de hoy
+  });
 
   // 1) Carga local primero (instantáneo, sirve de caché offline)
-  CONFIG = await storageGet('ss-config');
-  const savedData = await storageGet('ss-data');
+  CONFIG = await storageGet('ss-config-v2');
+  const savedData = await storageGet('ss-data-v2');
   if (savedData) DATA = savedData;
 
   // 2) Intenta traer/migrar desde la nube
@@ -1537,8 +1657,8 @@ async function init() {
         // La nube es la fuente de verdad compartida entre dispositivos
         if (remote.data) DATA = remote.data;
         if (remote.config) CONFIG = remote.config;
-        await storageSet('ss-data', DATA);
-        if (CONFIG) await storageSet('ss-config', CONFIG);
+        await storageSet('ss-data-v2', DATA);
+        if (CONFIG) await storageSet('ss-config-v2', CONFIG);
       }
       setSync('ok');
     } catch (e) {
@@ -1570,7 +1690,7 @@ async function saveSetup() {
   }
 
   CONFIG = { startDate, bStartWeight: bW, bGoalWeight: bG, mStartWeight: mW, mGoalWeight: mG };
-  await storageSet('ss-config', CONFIG);
+  await storageSet('ss-config-v2', CONFIG);
   syncPush({ action: 'saveConfig', config: CONFIG });
   document.getElementById('setupModal').style.display = 'none';
   renderAll();
@@ -1597,6 +1717,7 @@ async function saveDay(person) {
   const p = person === 'bernardo' ? 'b' : 'm';
   const date = document.getElementById(`${p}-date`).value;
   if (!date) { alert('Selecciona una fecha.'); return; }
+  if (date !== todayStr()) { alert('Solo puedes registrar el día de HOY. Los días pasados quedan cerrados y un día no registrado cuenta como 0.'); return; }
 
   const cals = parseFloat(document.getElementById(`${p}-calories`).value) || null;
   const range = CALORIE_RANGES[person];
@@ -1616,7 +1737,7 @@ async function saveDay(person) {
 
   if (!DATA[person]) DATA[person] = {};
   DATA[person][date] = entry;
-  await storageSet('ss-data', DATA);
+  await storageSet('ss-data-v2', DATA);
   syncPush({ action: 'saveDay', person, entry });
 
   // Feedback
@@ -2156,11 +2277,62 @@ function entryFor(person, dateObj) {
   return (DATA[person] || {})[ymd(dateObj)] || null;
 }
 
+const GYM_WEEK_GOAL = 4;
+const GYM_WEEK_BONUS = 20;
+const SEASON_WEEKS = 12;
+
+function weekGymCount(person, monday) {
+  let c = 0;
+  for (let i = 0; i < 7; i++) {
+    const e = entryFor(person, addDays(monday, i));
+    if (e && e.gym === 'yes') c++;
+  }
+  return c;
+}
+
 function weekTotal(person, monday) {
   let total = 0;
   for (let i = 0; i < 7; i++) total += dayPoints(entryFor(person, addDays(monday, i)));
+  if (weekGymCount(person, monday) >= GYM_WEEK_GOAL) total += GYM_WEEK_BONUS; // bono semanal gym
   return total;
 }
+
+// ── TEMPORADA (bloques de 12 semanas, ancladas a CONFIG.startDate) ──
+function seasonAnchor_() { return mondayOf(new Date(CONFIG.startDate + 'T00:00:00')); }
+
+function seasonByIndex(idx) {
+  const anchor = seasonAnchor_();
+  const startMon = new Date(anchor); startMon.setDate(anchor.getDate() + idx * SEASON_WEEKS * 7);
+  const endSun   = new Date(startMon); endSun.setDate(startMon.getDate() + SEASON_WEEKS * 7 - 1);
+  const weeks = [];
+  for (let i = 0; i < SEASON_WEEKS; i++) { const m = new Date(startMon); m.setDate(startMon.getDate() + i * 7); weeks.push(m); }
+  return { number: idx + 1, idx, startMon, endSun, weeks };
+}
+
+function getSeasonInfo(refDate) {
+  const anchor = seasonAnchor_();
+  const refMon = mondayOf(refDate);
+  const weeksSince = Math.max(0, Math.round((refMon - anchor) / (7 * 24 * 3600 * 1000)));
+  const idx = Math.floor(weeksSince / SEASON_WEEKS);
+  const info = seasonByIndex(idx);
+  info.weekInSeason = (weeksSince % SEASON_WEEKS) + 1;
+  return info;
+}
+
+function seasonStandings(info) {
+  let bPts = 0, mPts = 0, bWeeks = 0, mWeeks = 0, ties = 0;
+  const todayMon = mondayOf(new Date()).getTime();
+  info.weeks.forEach(mon => {
+    const b = weekTotal('bernardo', mon), m = weekTotal('manu', mon);
+    bPts += b; mPts += m;
+    if (mon.getTime() < todayMon) { // solo semanas ya cerradas cuentan para "semanas ganadas"
+      if (b > m) bWeeks++; else if (m > b) mWeeks++; else if (b || m) ties++;
+    }
+  });
+  return { bPts, mPts, bWeeks, mWeeks, ties };
+}
+
+function fmtDay_(d) { return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`; }
 
 function weekHasData(monday) {
   for (let i = 0; i < 7; i++) {
@@ -2206,9 +2378,15 @@ function renderH2HBanner() {
   else if (dow === 0) verdict = '⏰ Hoy cierra la semana';
   else verdict = `Faltan ${daysLeft} día${daysLeft !== 1 ? 's' : ''} · domingo decide`;
 
+  let eyebrow = 'Versus · semana en curso';
+  if (CONFIG && CONFIG.startDate) {
+    const si = getSeasonInfo(new Date());
+    eyebrow = `Temporada ${si.number} · Semana ${si.weekInSeason}/${SEASON_WEEKS}`;
+  }
+
   el.innerHTML = `
     <div class="h2h-top">
-      <span class="h2h-eyebrow">Versus · semana en curso</span>
+      <span class="h2h-eyebrow">${eyebrow}</span>
       <span class="h2h-verdict">${verdict}</span>
     </div>
     <div class="h2h-score">
@@ -2226,10 +2404,85 @@ function renderH2HBanner() {
 
 // ── VISTA COMPETENCIA ──
 function renderCompetencia() {
+  renderSeason();
   renderWeekBoard();
   renderDayStrip();
   renderWeekHistory();
   renderMonth();
+}
+
+function renderSeason() {
+  const banner = document.getElementById('season-banner');
+  const board  = document.getElementById('season-leaderboard');
+  const hist   = document.getElementById('season-history');
+  if (!banner) return;
+  if (!CONFIG || !CONFIG.startDate) { banner.innerHTML = ''; board.innerHTML = ''; hist.innerHTML = ''; return; }
+
+  const info = getSeasonInfo(new Date());
+  const st = seasonStandings(info);
+  const weeksLeft = SEASON_WEEKS - info.weekInSeason;
+  const pct = Math.round((info.weekInSeason / SEASON_WEEKS) * 100);
+  const countdown = info.weekInSeason >= SEASON_WEEKS
+    ? '🏁 ¡Última semana de la temporada!'
+    : `Faltan ${weeksLeft} semana${weeksLeft !== 1 ? 's' : ''} para cerrar`;
+
+  banner.innerHTML = `
+    <div class="season-banner">
+      <div class="season-top">
+        <span class="season-name">Temporada ${info.number}</span>
+        <span class="season-week">Semana ${info.weekInSeason} de ${SEASON_WEEKS}</span>
+      </div>
+      <div class="season-dates">${fmtDay_(info.startMon)} → ${fmtDay_(info.endSun)} ${info.endSun.getFullYear()}</div>
+      <div class="season-prog"><div class="season-prog-fill" style="width:${pct}%"></div></div>
+      <div class="season-countdown">${countdown}</div>
+    </div>`;
+
+  // Leaderboard — oficial: puntos acumulados. Secundario: semanas ganadas.
+  const bLead = st.bPts > st.mPts, mLead = st.mPts > st.bPts;
+  board.innerHTML = `
+    <div class="card">
+      <div class="lb-tag">Líder de la temporada · por puntos acumulados</div>
+      <div class="lb-grid">
+        <div class="lb-side ${bLead ? 'lead' : ''}">
+          <div class="lb-name">${bLead ? '👑 ' : ''}Bernardo</div>
+          <div class="lb-pts">${fmtPts(st.bPts)}</div>
+          <div class="lb-sub">puntos acumulados</div>
+          <div class="lb-weeks">${st.bWeeks} semana${st.bWeeks !== 1 ? 's' : ''} ganada${st.bWeeks !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="lb-vs">VS</div>
+        <div class="lb-side ${mLead ? 'lead' : ''}">
+          <div class="lb-name">${mLead ? '👑 ' : ''}Manu</div>
+          <div class="lb-pts">${fmtPts(st.mPts)}</div>
+          <div class="lb-sub">puntos acumulados</div>
+          <div class="lb-weeks">${st.mWeeks} semana${st.mWeeks !== 1 ? 's' : ''} ganada${st.mWeeks !== 1 ? 's' : ''}</div>
+        </div>
+      </div>
+      ${st.ties ? `<div style="text-align:center;font-size:11px;color:var(--muted);margin-top:10px;">🤝 ${st.ties} semana(s) empatada(s)</div>` : ''}
+    </div>`;
+
+  // Historial de temporadas pasadas
+  if (info.idx === 0) {
+    hist.innerHTML = `<div style="color:var(--muted);font-size:13px;text-align:center;padding:16px;">Primera temporada en curso. Al cerrar las ${SEASON_WEEKS} semanas aparecerá aquí el campeón.</div>`;
+  } else {
+    let rows = '';
+    for (let k = info.idx - 1; k >= 0; k--) {
+      const sInfo = seasonByIndex(k);
+      const sSt = seasonStandings(sInfo);
+      let champ, cls;
+      if (sSt.bPts > sSt.mPts)      { champ = 'Bernardo'; cls = 'b'; }
+      else if (sSt.mPts > sSt.bPts) { champ = 'Manu';     cls = 'm'; }
+      else                          { champ = 'Empate';   cls = 'tie'; }
+      rows += `
+        <div class="week-hist-row">
+          <span class="wh-range">Temporada ${sInfo.number} · ${fmtDay_(sInfo.startMon)}–${fmtDay_(sInfo.endSun)}</span>
+          <span class="wh-result">
+            <span class="wh-score">${fmtPts(sSt.bPts)} – ${fmtPts(sSt.mPts)}</span>
+            <span class="wh-winner ${cls}">${cls === 'tie' ? '🤝 Empate' : '🏆 ' + champ}</span>
+          </span>
+        </div>`;
+    }
+    hist.innerHTML = rows;
+  }
 }
 
 function renderWeekBoard() {
@@ -2463,8 +2716,8 @@ async function importData(input) {
     if (!payload || !payload.data) throw new Error('formato');
     if (!confirm('Esto reemplazará TODOS los datos de este navegador con los del respaldo. ¿Continuar?')) { input.value = ''; return; }
     DATA = payload.data;
-    if (payload.config) { CONFIG = payload.config; await storageSet('ss-config', CONFIG); }
-    await storageSet('ss-data', DATA);
+    if (payload.config) { CONFIG = payload.config; await storageSet('ss-config-v2', CONFIG); }
+    await storageSet('ss-data-v2', DATA);
     syncPush({ action: 'saveAll', state: { config: CONFIG, data: DATA } });
     renderAll();
     flashBackup('✓ Respaldo importado correctamente');
