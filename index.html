@@ -448,7 +448,7 @@
     background: rgba(15,24,41,0.55);
     backdrop-filter: blur(4px);
     z-index: 1000;
-    display: flex;
+    display: none; /* oculto por defecto; init lo muestra solo si no hay config */
     align-items: center;
     justify-content: center;
     padding: 24px;
@@ -1098,6 +1098,54 @@
     align-self: center;
   }
 
+  /* ── CELEBRACIÓN ── */
+  .celebrate-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .celebrate-card {
+    background: rgba(255,255,255,0.97);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 26px 30px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(15,24,41,0.28);
+    animation: celebPop 0.4s cubic-bezier(0.18,0.89,0.32,1.28);
+    pointer-events: auto;
+    cursor: pointer;
+    max-width: 88vw;
+  }
+  @keyframes celebPop {
+    0% { transform: scale(0.6); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .celebrate-emoji { font-size: 44px; line-height: 1; }
+  .celebrate-line {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    letter-spacing: 1px;
+    margin-top: 8px;
+  }
+  .celebrate-line.b { color: var(--steel-dark); }
+  .celebrate-line.m { color: #7e22ce; }
+  .celebrate-hint { font-size: 10px; color: var(--muted); margin-top: 12px; letter-spacing: 0.5px; }
+  .confetti {
+    position: absolute;
+    top: -16px;
+    border-radius: 2px;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    0%   { transform: translateY(-20px) rotateZ(0deg); opacity: 1; }
+    100% { transform: translateY(106vh) rotateZ(720deg); opacity: 0.85; }
+  }
+
   /* ── RESPONSIVE ── */
   @media (max-width: 600px) {
     .grid-4 { grid-template-columns: 1fr 1fr; }
@@ -1642,6 +1690,12 @@ async function init() {
   const savedData = await storageGet('ss-data-v2');
   if (savedData) DATA = savedData;
 
+  // Render inmediato desde caché si ya hay config (sin flash de setup, sin pantalla en blanco)
+  if (CONFIG) {
+    document.getElementById('setupModal').style.display = 'none';
+    renderAll();
+  }
+
   // 2) Intenta traer/migrar desde la nube
   if (REMOTE_ENABLED) {
     setSync('syncing');
@@ -1747,6 +1801,7 @@ async function saveDay(person) {
   setTimeout(() => { msg.style.opacity = '0'; }, 2500);
 
   renderAll();
+  celebrate();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2611,6 +2666,58 @@ function renderWeekHistory() {
       </div>
     </div>
     ${rows}`;
+}
+
+// ── CELEBRACIÓN (al guardar cada noche) ──
+function personName(p) { return p === 'bernardo' ? 'Bernardo' : 'Manu'; }
+
+function celebrate() {
+  if (!CONFIG || !CONFIG.startDate) return;
+  const monday = mondayOf(new Date());
+  const wb = weekTotal('bernardo', monday), wm = weekTotal('manu', monday);
+  const info = getSeasonInfo(new Date());
+  const st = seasonStandings(info);
+
+  const weekLeader   = wb > wm ? 'bernardo' : wm > wb ? 'manu' : null;
+  const seasonLeader = st.bPts > st.mPts ? 'bernardo' : st.mPts > st.bPts ? 'manu' : null;
+
+  const msgs = [];
+  if (weekLeader)   msgs.push({ person: weekLeader,   text: `🔥 ${personName(weekLeader)} va ganando la semana` });
+  if (seasonLeader) msgs.push({ person: seasonLeader, text: `🏆 ${personName(seasonLeader)} lidera la Temporada ${info.number}` });
+  if (!msgs.length) return; // empate total o sin puntos → sin animación
+
+  showCelebration(msgs);
+}
+
+function showCelebration(msgs) {
+  // quita cualquier celebración previa
+  const prev = document.querySelector('.celebrate-overlay');
+  if (prev) prev.remove();
+
+  const ov = document.createElement('div');
+  ov.className = 'celebrate-overlay';
+
+  const colors = ['#1A6FA3','#2278AC','#9333ea','#c084fc','#ffe08a','#4ade80','#fbbf24','#f87171'];
+  let conf = '';
+  for (let i = 0; i < 90; i++) {
+    const left = (Math.random() * 100).toFixed(2);
+    const dur  = (2 + Math.random() * 2).toFixed(2);
+    const delay = (Math.random() * 0.7).toFixed(2);
+    const col = colors[Math.floor(Math.random() * colors.length)];
+    const w = (6 + Math.random() * 8).toFixed(1);
+    conf += `<span class="confetti" style="left:${left}vw;width:${w}px;height:${(w*1.4).toFixed(1)}px;background:${col};animation-duration:${dur}s;animation-delay:${delay}s;"></span>`;
+  }
+
+  const lines = msgs.map(m => `<div class="celebrate-line ${m.person === 'bernardo' ? 'b' : 'm'}">${m.text}</div>`).join('');
+  ov.innerHTML = conf + `<div class="celebrate-card"><div class="celebrate-emoji">🎉</div>${lines}<div class="celebrate-hint">toca para cerrar</div></div>`;
+  ov.addEventListener('click', () => ov.remove());
+  document.body.appendChild(ov);
+
+  setTimeout(() => {
+    ov.style.transition = 'opacity 0.5s';
+    ov.style.opacity = '0';
+    setTimeout(() => ov.remove(), 500);
+  }, 4000);
 }
 
 // ── VISTA MENSUAL ──
